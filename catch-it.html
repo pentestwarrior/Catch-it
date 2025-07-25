@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catch It – Ethical Camera Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #111;
+      color: #fff;
+      padding: 20px;
+    }
+    video, canvas {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 500px;
+      border: 5px solid #00ff99;
+      border-radius: 10px;
+    }
+    .buttons {
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background: #00ff99;
+      color: #111;
+      cursor: pointer;
+    }
+    .info {
+      margin-top: 30px;
+      background: #222;
+      padding: 15px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📸 Catch It – Ethical Camera Tool</h1>
+  <p>This tool ethically accesses your front camera, gets your permission-based location, and shows basic device info.</p>
+  <video id="video" autoplay playsinline></video>
+  <div class="buttons">
+    <button onclick="takeSnapshot()">📸 Snapshot</button>
+    <button onclick="startRecording()">🔴 Start Recording</button>
+    <button onclick="stopRecording()">⏹️ Stop & Download</button>
+    <button onclick="getLocation()">📍 Get Location</button>
+  </div>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <div class="info" id="deviceInfo"></div>
+  <div class="info" id="locationInfo"></div>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true
+        });
+        const video = document.getElementById("video");
+        video.srcObject = stream;
+
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "recorded_video.webm";
+          a.click();
+          recordedChunks = [];
+        };
+      } catch (err) {
+        alert("Unable to access camera or microphone: " + err);
+      }
+    }
+
+    function takeSnapshot() {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "snapshot.png";
+      link.click();
+    }
+
+    function startRecording() {
+      if (mediaRecorder && mediaRecorder.state === "inactive") {
+        recordedChunks = [];
+        mediaRecorder.start();
+        alert("Recording started...");
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        alert("Recording stopped.");
+      }
+    }
+
+    function getLocation() {
+      const output = document.getElementById("locationInfo");
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const lat = position.coords.latitude.toFixed(6);
+          const lon = position.coords.longitude.toFixed(6);
+          output.innerHTML = `<strong>Location:</strong><br>Latitude: ${lat}<br>Longitude: ${lon}`;
+        }, () => {
+          output.innerHTML = "Location access denied.";
+        });
+      } else {
+        output.innerHTML = "Geolocation not supported by this browser.";
+      }
+    }
+
+    function showDeviceInfo() {
+      const info = document.getElementById("deviceInfo");
+      info.innerHTML = `<strong>Device Info:</strong><br>
+        User Agent: ${navigator.userAgent}<br>
+        Platform: ${navigator.platform}<br>
+        Screen Size: ${screen.width} x ${screen.height}<br>
+        Language: ${navigator.language}`;
+    }
+
+    startCamera();
+    showDeviceInfo();
+  </script>
+</body>
+</html>
